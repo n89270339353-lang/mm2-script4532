@@ -1,4 +1,6 @@
+-- =============================================================================
 -- КОРНЕВОЙ ЭЛЕМЕНТ И НАСТРОЙКИ СТИЛЯ
+-- =============================================================================
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -7,7 +9,7 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- Создаем ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "KitiMenu"
+ScreenGui.Name = "bomd hud"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = PlayerGui
@@ -17,11 +19,17 @@ local Theme = {
     Background = Color3.fromRGB(18, 19, 23),
     Sidebar = Color3.fromRGB(24, 25, 30),
     Card = Color3.fromRGB(28, 30, 37),
-    Accent = Color3.fromRGB(45, 105, 225), -- Синий цвет выделения
+    Accent = Color3.fromRGB(45, 105, 225), -- Тот самый синий цвет выделения
     TextMain = Color3.fromRGB(240, 240, 245),
     TextMuted = Color3.fromRGB(140, 145, 160),
     ToggleOn = Color3.fromRGB(75, 140, 255),
     ToggleOff = Color3.fromRGB(50, 52, 65)
+}
+
+-- Таблица для хранения настроек
+_G.KitiConfig = {
+    Toggles = {},
+    Sliders = {}
 }
 
 -- Утилита для скругления углов
@@ -39,7 +47,7 @@ MainFrame.Position = UDim2.new(0.5, -350, 0.5, -225)
 MainFrame.BackgroundColor3 = Theme.Background
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
-MainFrame.Draggable = true -- Перетаскивание мышкой
+MainFrame.Draggable = true 
 ApplyCorner(MainFrame, 10)
 MainFrame.Parent = ScreenGui
 
@@ -64,7 +72,7 @@ LogoLabel.TextColor3 = Theme.TextMain
 LogoLabel.TextXAlignment = Enum.TextXAlignment.Left
 LogoLabel.Parent = Sidebar
 
--- Сканнер вкладок
+-- Контейнер для вкладок
 local TabContainer = Instance.new("ScrollingFrame")
 TabContainer.Size = UDim2.new(1, -10, 1, -110)
 TabContainer.Position = UDim2.new(0, 5, 0, 60)
@@ -105,7 +113,6 @@ UserSub.TextXAlignment = Enum.TextXAlignment.Left
 UserSub.BackgroundTransparency = 1
 UserSub.Parent = UserFrame
 
-
 -- КОНТЕНТНАЯ ЧАСТЬ (СТРАНИЦЫ)
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Size = UDim2.new(1, -190, 1, -50)
@@ -131,8 +138,9 @@ ConfigLabel.TextXAlignment = Enum.TextXAlignment.Left
 ConfigLabel.BackgroundTransparency = 1
 ConfigLabel.Parent = TopBar
 
-
--- ЛОГИКА ВКЛАДОК И СТРАНИЦ
+-- =============================================================================
+-- ЛОГИКА КОНСТРУКТОРА ИНТЕРФЕЙСА
+-- =============================================================================
 local Tabs = {}
 local Pages = {}
 local CurrentTab = nil
@@ -180,8 +188,6 @@ local function CreateTab(name)
     return Page
 end
 
-
--- ФУНКЦИОНАЛЬНЫЕ ЭЛЕМЕНТЫ ДЛЯ СЕКЦИЙ (КАРТОЧЕК)
 local function CreateSection(page, title)
     local Section = Instance.new("Frame")
     Section.BackgroundColor3 = Theme.Card
@@ -213,8 +219,10 @@ local function CreateSection(page, title)
     return ElementContainer
 end
 
--- 1. Переключатель (Toggle)
-local function AddToggle(parent, text, default, callback)
+-- ЭЛЕМЕНТЫ УПРАВЛЕНИЯ
+local function AddToggle(parent, configKey, text, default, callback)
+    _G.KitiConfig.Toggles[configKey] = default
+
     local ToggleFrame = Instance.new("Frame")
     ToggleFrame.Size = UDim2.new(1, 0, 0, 26)
     ToggleFrame.BackgroundTransparency = 1
@@ -245,20 +253,20 @@ local function AddToggle(parent, text, default, callback)
     ApplyCorner(Indicator, 7)
     Indicator.Parent = Button
 
-    local state = default
     Button.MouseButton1Click:Connect(function()
-        state = not state
+        local state = not _G.KitiConfig.Toggles[configKey]
+        _G.KitiConfig.Toggles[configKey] = state
+        
         local targetPos = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
         local targetColor = state and Theme.ToggleOn or Theme.ToggleOff
         
         TweenService:Create(Button, TweenInfo.new(0.15), {BackgroundColor3 = targetColor}):Play()
         TweenService:Create(Indicator, TweenInfo.new(0.15), {Position = targetPos}):Play()
         
-        callback(state)
+        if callback then callback(state) end
     end)
 end
 
--- 2. Кнопка действия (Button)
 local function AddButton(parent, text, callback)
     local Button = Instance.new("TextButton")
     Button.Size = UDim2.new(1, 0, 0, 28)
@@ -270,27 +278,17 @@ local function AddButton(parent, text, callback)
     ApplyCorner(Button, 6)
     Button.Parent = parent
 
-    Button.MouseButton1Click:Connect(callback)
+    if callback then
+        Button.MouseButton1Click:Connect(callback)
+    end
 end
 
--- 3. Ввод числовых параметров (TextBox)
-local function AddTextBox(parent, text, default, callback)
+local function AddTextBox(parent, configKey, text, default, callback)
+    _G.KitiConfig.Sliders[configKey] = default
+
     local BoxFrame = Instance.new("Frame")
     BoxFrame.Size = UDim2.new(1, 0, 0, 26)
     BoxFrame.BackgroundTransparency = 1
     BoxFrame.Parent = parent
 
-    local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -60, 1, 0)
-    Label.Text = text
-    Label.Font = Enum.Font.GothamMedium
-    Label.TextSize = 13
-    Label.TextColor3 = Theme.TextMain
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.BackgroundTransparency = 1
-    Label.Parent = BoxFrame
 
-    local Input = Instance.new("TextBox")
-    Input.Size = UDim2.new(0, 50, 0, 20)
-    Input.Position = UDim2.new(1, -50, 0.5, -10)
-    Input.BackgroundColor3 = Color3.fromRGB(22, 23, 27)
